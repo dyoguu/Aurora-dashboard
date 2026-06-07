@@ -4,102 +4,102 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aurora Dashboard</title>
-
 <style>
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #071012;
-    color: white;
+body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    background:#071012;
+    color:white;
 }
-
-header {
-    padding: 20px;
-    text-align: center;
+header{
+    padding:20px;
+    text-align:center;
 }
-
-h1 {
-    margin: 0;
-    font-size: 2rem;
+h1{
+    margin:0;
 }
-
-.subtitle {
-    color: #9bb0ae;
-    margin-top: 10px;
+.subtitle{
+    color:#9bb0ae;
+    margin-top:10px;
 }
-
-.container {
-    padding: 15px;
+.container{
+    padding:15px;
+    max-width:800px;
+    margin:auto;
 }
-
-.card {
-    background: #132026;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 15px;
+.card{
+    background:#132026;
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:15px;
 }
-
-.metric {
-    font-size: 2rem;
-    font-weight: bold;
+.label{
+    color:#9bb0ae;
+    margin-bottom:8px;
 }
-
-.label {
-    color: #9bb0ae;
+.metric{
+    font-size:2rem;
+    font-weight:bold;
 }
-
-button {
-    width: 100%;
-    border: none;
-    border-radius: 12px;
-    padding: 15px;
-    background: #74f7a0;
-    color: black;
-    font-weight: bold;
-    font-size: 1rem;
-    cursor: pointer;
+button{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    background:#74f7a0;
+    color:black;
+    font-weight:bold;
+    font-size:1rem;
+    cursor:pointer;
 }
-
-.chart {
-    height: 200px;
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    margin-top: 20px;
+.chart{
+    height:200px;
+    display:flex;
+    align-items:flex-end;
+    gap:8px;
+    margin-top:20px;
 }
-
-.bar {
-    flex: 1;
-    background: #74f7a0;
-    border-radius: 6px 6px 0 0;
+.bar{
+    flex:1;
+    background:#74f7a0;
+    border-radius:6px 6px 0 0;
+}
+.low{
+    color:#9bb0ae;
+}
+.possible{
+    color:#ffd166;
+}
+.good{
+    color:#74f7a0;
+}
+.excellent{
+    color:#74c0fc;
 }
 </style>
 </head>
-
 <body>
-
 <header>
     <h1>🌌 Aurora Dashboard</h1>
     <div class="subtitle">
-        Version 1 running from GitHub Pages
+        My first public web application
     </div>
 </header>
-
 <div class="container">
-
     <div class="card">
         <div class="label">Current Kp</div>
         <div id="kp" class="metric">3.5</div>
     </div>
-
     <div class="card">
         <div class="label">Aurora Visibility (Toronto)</div>
-        <div id="visibility" class="metric">Low</div>
+        <div id="visibility" class="metric low">Low</div>
     </div>
-
+    <div class="card">
+        <div class="label">Last Updated</div>
+        <div id="lastUpdate" class="metric"></div>
+    </div>
     <div class="card">
         <div class="label">Sample Historical Activity</div>
-
         <div class="chart">
             <div class="bar" style="height:30%"></div>
             <div class="bar" style="height:60%"></div>
@@ -110,31 +110,41 @@ button {
             <div class="bar" style="height:80%"></div>
         </div>
     </div>
-
     <button onclick="simulateAurora()">
         Simulate New Aurora Reading
     </button>
-
 </div>
-
 <script>
-
-function simulateAurora() {
-
-    const kp = (Math.random() * 9).toFixed(1);
-
-    document.getElementById("kp").innerText = kp;
-
-    let visibility = "Low";
-
-    if (kp >= 5) visibility = "Possible";
-    if (kp >= 7) visibility = "Good";
-    if (kp >= 8) visibility = "Excellent";
-
-    document.getElementById("visibility").innerText = visibility;
+function updateClock(){
+    const now = new Date();
+    document.getElementById("lastUpdate").innerText =
+        now.toLocaleString();
 }
-
+function simulateAurora(){
+    const kp = (Math.random() * 9).toFixed(1);
+    document.getElementById("kp").innerText = kp;
+    let visibility = "Low";
+    let cssClass = "low";
+    if(kp >= 5){
+        visibility = "Possible";
+        cssClass = "possible";
+    }
+    if(kp >= 7){
+        visibility = "Good";
+        cssClass = "good";
+    }
+    if(kp >= 8){
+        visibility = "Excellent";
+        cssClass = "excellent";
+    }
+    const visElement =
+        document.getElementById("visibility");
+    visElement.innerText = visibility;
+    visElement.className = "metric " + cssClass;
+    updateClock();
+}
+updateClock();
+setInterval(updateClock,1000);
 </script>
-
 </body>
 </html>
