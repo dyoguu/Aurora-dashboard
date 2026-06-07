@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aurora Historical Dashboard — iPhone Safe</title>
+  <style>
+    :root{
+      --bg:#061012;--card:#101c20;--card2:#13272d;--text:#ecfbf7;--muted:#9bb0ae;
+      --grid:rgba(255,255,255,.09);--green:#74f7a0;--blue:#8ecaff;--yellow:#ffd166;--red:#ff6b6b;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#071b19,#040708);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    .app{max-width:1000px;margin:0 auto;padding:14px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+    h1{font-size:34px;line-height:.95;margin:16px 0 8px;letter-spacing:-1.5px}
+    p{color:var(--muted);line-height:1.45}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+      border:1px solid rgba(255,255,255,.1);border-radius:var(--radius);padding:14px;margin:12px 0;
+      box-shadow:0 12px 32px rgba(0,0,0,.25)}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:840px){.grid.two{grid-template-columns:330px 1fr}.grid.kpis{grid-template-columns:repeat(4,1fr)}}
+    label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
+    input,select,button,textarea{width:100%;font:inherit;border-radius:13px;border:1px solid rgba(255,255,255,.14);
+      background:#0a1518;color:var(--text);padding:12px}
+    button{border:0;background:linear-gradient(135deg,#5af28d,#77bdff);color:#03110b;font-weight:800;margin-top:12px}
+    button.secondary{background:#0a1518;color:var(--text);border:1px solid rgba(255,255,255,.14)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:560px){.row{grid-template-columns:1fr}}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{font-size:12px;color:var(--muted);background:#0a1518;border:1px solid rgba(255,255,255,.12);
+      padding:8px 10px;border-radius:999px}
+    .kpi .label{font-size:12px;color:var(--muted)}
+    .kpi .value{font-size:27px;font-weight:850;margin-top:6px}
+    .chart{width:100%;height:310px;display:block;touch-action:pan-y}
+    .mini{font-size:12px;color:var(--muted)}
+    .ok{color:var(--green)} .err{color:var(--red)} .warn{color:var(--yellow)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    td,th{border-bottom:1px solid rgba(255,255,255,.08);padding:9px 6px;text-align:left;white-space:nowrap}
+    th{color:var(--muted);font-weight:600}
+    .scroll{overflow:auto}
+    .hidden{display:none}
+    textarea{height:110px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    a{color:var(--blue)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Aurora Historical Dashboard</h1>
+  <p>iPhone-safe version with no external chart libraries. It tries to load historical Kp directly from GFZ. If your browser blocks the API, you can paste/export JSON later and still use the visualizations.</p>
+
+  <div class="grid two">
+    <section class="card">
+      <strong>Controls</strong>
+      <div class="row">
+        <div><label>Start date</label><input id="start" type="date"></div>
+        <div><label>End date</label><input id="end" type="date"></div>
+      </div>
+      <label>View</label>
+      <select id="view">
+        <option value="dailyMax" selected>Daily max Kp</option>
+        <option value="dailyAvg">Daily average Kp</option>
+        <option value="monthlyMax">Monthly max Kp</option>
+        <option value="monthlyStormDays">Monthly storm days, Kp ≥ 5</option>
+        <option value="raw">Raw 3-hour Kp</option>
+      </select>
+      <div class="chips">
+        <span class="chip" data-days="30">30d</span>
+        <span class="chip" data-days="365">1y</span>
+        <span class="chip" data-days="1825">5y</span>
+        <span class="chip" data-year="2015">Since 2015</span>
+      </div>
+      <button id="load">Load from public API</button>
+      <button id="demo" class="secondary">Load demo data</button>
+      <button id="csv" class="secondary">Export current data as CSV</button>
+      <p id="status" class="mini">Ready.</p>
+
+      <details>
+        <summary class="mini">Advanced: paste GFZ JSON manually</summary>
+        <p class="mini">Use this if iOS/ChatGPT preview blocks the API request.</p>
+        <textarea id="manual" placeholder='Paste JSON here, then tap "Use pasted JSON"'></textarea>
+        <button id="useManual" class="secondary">Use pasted JSON</button>
+      </details>
+    </section>
+
+    <main>
+      <div class="grid kpis">
+        <div class="card kpi"><div class="label">Max Kp</div><div id="maxKp" class="value">—</div></div>
+        <div class="card kpi"><div class="label">Kp ≥ 5 periods</div><div id="storm" class="value">—</div></div>
+        <div class="card kpi"><div class="label">Kp ≥ 8 periods</div><div id="extreme" class="value">—</div></div>
+        <div class="card kpi"><div class="label">Records</div><div id="records" class="value">—</div></div>
+      </div>
+
+      <section class="card">
+        <strong>Kp timeline</strong>
+        <svg id="lineChart" class="chart" role="img" aria-label="Kp timeline"></svg>
+      </section>
+
+      <section class="card">
+        <strong>Kp distribution</strong>
+        <svg id="barChart" class="chart" role="img" aria-label="Kp distribution"></svg>
+      </section>
+
+      <section class="card">
+        <strong>Top storm periods</strong>
+        <div class="scroll"><table><thead><tr><th>#</th><th>UTC time</th><th>Kp</th><th>Status</th></tr></thead><tbody id="rows"><tr><td colspan="4">No data loaded yet.</td></tr></tbody></table></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const GFZ = "https://kp.gfz.de/app/json/";
+let raw = [];
+
+function $(id){return document.getElementById(id)}
+function iso(d){return d.toISOString().slice(0,10)}
+function msg(t,c=""){ $("status").innerHTML = `<span class="${c}">${t}</span>`; }
+function setDefaults(){ const e=new Date(), s=new Date(); s.setFullYear(e.getFullYear()-1); $("start").value=iso(s); $("end").value=iso(e); }
+setDefaults();
+
+document.querySelectorAll(".chip").forEach(x=>x.onclick=()=>{
+  const e=new Date(); let s=new Date();
+  if(x.dataset.days) s.setDate(e.getDate()-Number(x.dataset.days));
+  if(x.dataset.year) s=new Date(Number(x.dataset.year),0,1);
+  $("start").value=iso(s); $("end").value=iso(e);
+});
+
+function parseGFZ(j){
+  if(j.datetime && (j.Kp || j.kp)){
+    const a=j.Kp||j.kp;
+    return j.datetime.map((t,i)=>({time:new Date(t),kp:Number(a[i]),status:j.status?j.status[i]:""}))
+      .filter(d=>!isNaN(d.time)&&!isNaN(d.kp));
+  }
+  if(Array.isArray(j)){
+    return j.map(r=>Array.isArray(r)
+      ? {time:new Date(r[0]),kp:Number(r[1]),status:r[2]||""}
+      : {time:new Date(r.datetime||r.time||r.date),kp:Number(r.Kp||r.kp||r.value),status:r.status||""})
+      .filter(d=>!isNaN(d.time)&&!isNaN(d.kp));
+  }
+  throw new Error("Unexpected JSON format");
+}
+
+async function loadAPI(){
+  msg("Loading API...");
+  try{
+    const start=$("start").value+"T00:00:00Z", end=$("end").value+"T23:59:59Z";
+    const url=GFZ+"?"+new URLSearchParams({start,end,index:"Kp"}).toString();
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    raw=parseGFZ(await r.json()).sort((a,b)=>a.time-b.time);
+    if(!raw.length) throw new Error("No rows returned");
+    render();
+    msg("Loaded "+raw.length.toLocaleString()+" records from GFZ.", "ok");
+  }catch(e){
+    msg("API load failed: "+e.message+". On iPhone this often happens when the file is opened inside ChatGPT preview or Files. Try Share → Open in Safari, or use demo/manual JSON.", "err");
+  }
+}
+
+function demoData(){
+  const start=new Date($("start").value+"T00:00:00Z"), end=new Date($("end").value+"T00:00:00Z");
+  raw=[]; let d=new Date(start);
+  while(d<=end){
+    for(let h=0;h<24;h+=3){
+      const day=(d-start)/86400000;
+      let kp=2+1.2*Math.sin(day/18)+Math.random()*1.2;
+      if(Math.random()<0.025) kp+=3+Math.random()*3;
+      kp=Math.max(0,Math.min(9,kp));
+      raw.push({time:new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),h)),kp,status:"demo"});
+    }
+    d.setUTCDate(d.getUTCDate()+1);
+  }
+  render(); msg("Demo data loaded. This is not real historical data.", "warn");
+}
+
+function keyDay(d){return d.toISOString().slice(0,10)}
+function keyMonth(d){return d.toISOString().slice(0,7)}
+function avg(a){return a.reduce((x,y)=>x+y,0)/a.length}
+function aggregate(){
+  const mode=$("view").value;
+  if(mode==="raw") return raw.map(d=>({label:d.time.toISOString().slice(0,16).replace("T"," "),value:d.kp}));
+  const map=new Map();
+  raw.forEach(d=>{const k=mode.startsWith("monthly")?keyMonth(d.time):keyDay(d.time); if(!map.has(k))map.set(k,[]); map.get(k).push(d.kp);});
+  if(mode==="monthlyStormDays"){
+    const monthDays=new Map();
+    raw.forEach(d=>{
+      const m=keyMonth(d.time), day=keyDay(d.time);
+      if(!monthDays.has(m)) monthDays.set(m,new Map());
+      const dm=monthDays.get(m); dm.set(day,Math.max(dm.get(day)||0,d.kp));
+    });
+    return [...monthDays.entries()].map(([label,dm])=>({label,value:[...dm.values()].filter(v=>v>=5).length}));
+  }
+  return [...map.entries()].map(([label,vals])=>({label,value:mode.endsWith("Avg")?Number(avg(vals).toFixed(2)):Math.max(...vals)}));
+}
+
+function svgLine(id, data, maxY=9){
+  const svg=$(id), w=svg.clientWidth||600, h=svg.clientHeight||300, p={l:38,r:12,t:18,b:34};
+  svg.setAttribute("viewBox",`0 0 ${w} ${h}`); svg.innerHTML="";
+  const plotW=w-p.l-p.r, plotH=h-p.t-p.b;
+  const mk=(name,attrs)=>{const e=document.createElementNS("http://www.w3.org/2000/svg",name); for(const k in attrs)e.setAttribute(k,attrs[k]); svg.appendChild(e); return e;}
+  for(let i=0;i<=4;i++){const y=p.t+plotH*i/4; mk("line",{x1:p.l,y1:y,x2:w-p.r,y2:y,stroke:"rgba(255,255,255,.09)"}); mk("text",{x:4,y:y+4,fill:"#9bb0ae","font-size":11}).textContent=(maxY*(1-i/4)).toFixed(0);}
+  if(data.length<2)return;
+  const step=plotW/(data.length-1);
+  const pts=data.map((d,i)=>[p.l+i*step, p.t+plotH-(d.value/maxY)*plotH]);
+  mk("path",{d:pts.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" "),fill:"none",stroke:"#74f7a0","stroke-width":2});
+  const ticks=Math.min(6,data.length);
+  for(let i=0;i<ticks;i++){const idx=Math.round(i*(data.length-1)/(ticks-1)); const x=p.l+idx*step; mk("text",{x:x,y:h-10,fill:"#9bb0ae","font-size":11,"text-anchor":"middle"}).textContent=data[idx].label.slice(0,10);}
+}
+
+function svgBars(id, bins){
+  const svg=$(id), w=svg.clientWidth||600, h=svg.clientHeight||300, p={l:42,r:12,t:18,b:34};
+  svg.setAttribute("viewBox",`0 0 ${w} ${h}`); svg.innerHTML="";
+  const mk=(name,attrs)=>{const e=document.createElementNS("http://www.w3.org/2000/svg",name); for(const k in attrs)e.setAttribute(k,attrs[k]); svg.appendChild(e); return e;}
+  const max=Math.max(1,...bins.map(b=>b.count)), plotW=w-p.l-p.r, plotH=h-p.t-p.b, bw=plotW/bins.length*.72;
+  for(let i=0;i<=4;i++){const y=p.t+plotH*i/4; mk("line",{x1:p.l,y1:y,x2:w-p.r,y2:y,stroke:"rgba(255,255,255,.09)"}); mk("text",{x:4,y:y+4,fill:"#9bb0ae","font-size":11}).textContent=Math.round(max*(1-i/4));}
+  bins.forEach((b,i)=>{const x=p.l+i*plotW/bins.length+(plotW/bins.length-bw)/2, bh=b.count/max*plotH, y=p.t+plotH-bh; mk("rect",{x,y,width:bw,height:bh,rx:5,fill:i>=8?"#ff6b6b":i>=5?"#ffd166":"#8ecaff"}); mk("text",{x:x+bw/2,y:h-10,fill:"#9bb0ae","font-size":11,"text-anchor":"middle"}).textContent=b.label;});
+}
+
+function render(){
+  if(!raw.length)return;
+  $("maxKp").textContent=Math.max(...raw.map(d=>d.kp)).toFixed(1);
+  $("storm").textContent=raw.filter(d=>d.kp>=5).length.toLocaleString();
+  $("extreme").textContent=raw.filter(d=>d.kp>=8).length.toLocaleString();
+  $("records").textContent=raw.length.toLocaleString();
+  const data=aggregate(); svgLine("lineChart",data,$("view").value==="monthlyStormDays"?Math.max(10,...data.map(d=>d.value)):9);
+  const bins=Array.from({length:10},(_,i)=>({label:String(i),count:0}));
+  raw.forEach(d=>bins[Math.max(0,Math.min(9,Math.floor(d.kp)))].count++);
+  svgBars("barChart",bins);
+  const top=[...raw].sort((a,b)=>b.kp-a.kp).slice(0,15);
+  $("rows").innerHTML=top.map((d,i)=>`<tr><td>${i+1}</td><td>${d.time.toISOString().slice(0,16).replace("T"," ")} UTC</td><td>${d.kp.toFixed(1)}</td><td>${d.status||""}</td></tr>`).join("");
+}
+
+function exportCSV(){
+  if(!raw.length){msg("No data to export.","warn");return}
+  const csv="time_utc,kp,status\n"+raw.map(d=>`${d.time.toISOString()},${d.kp},"${String(d.status||"").replaceAll('"','""')}"`).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="aurora_kp_data.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+$("load").onclick=loadAPI;
+$("demo").onclick=demoData;
+$("csv").onclick=exportCSV;
+$("view").onchange=render;
+$("useManual").onclick=()=>{try{raw=parseGFZ(JSON.parse($("manual").value)).sort((a,b)=>a.time-b.time);render();msg("Pasted JSON loaded.","ok")}catch(e){msg("Could not parse pasted JSON: "+e.message,"err")}};
+window.addEventListener("resize",()=>{if(raw.length)render()});
+</script>
+</body>
+</html>
